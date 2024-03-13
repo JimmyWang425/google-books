@@ -1,0 +1,466 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Demo Books for Google Books API</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Main -->
+					<div id="main">
+						<div class="inner">
+
+							<!-- Header -->
+								<header id="header">
+									<a href="index.html" class="logo"><strong>Demo site</strong> for Google Books API</a>
+									<ul class="icons">
+										<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
+										<li><a href="#" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+										<li><a href="#" class="icon brands fa-snapchat-ghost"><span class="label">Snapchat</span></a></li>
+										<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+										<li><a href="#" class="icon brands fa-medium-m"><span class="label">Medium</span></a></li>
+									</ul>
+								</header>
+
+							<!-- Banner -->
+								<section id="banner">
+									<div class="content">
+										<header>
+											<h1>Google Books<br />
+											API Lookup</h1>
+											<p>Includes pagination of 10 results per page</p>
+										</header>
+
+										<style>
+											.collapsible {
+												background-color: #f6f6f6;
+												cursor: pointer;
+												padding: 10px;
+												width: 100%;
+												border: none;
+												text-align: left;
+												outline: none;
+												margin: 1em 0 0 0;
+											}
+											.active, .collapsible:hover {
+											  	background-color: #e7e7e7;
+											}
+											.collapseContent {
+												padding: 0 10px;
+												max-height: 0;
+												overflow: hidden;
+												transition: max-height 0.2s ease-out;
+												background-color: #f1f1f1;
+											}
+										</style>
+
+										<!-- Google Books API code START -->
+										<form>
+											<div class="form-group">
+												<div style="padding-bottom: 4px;">Search by Book Title:</div>
+											  	<label style="display: none;" for="bookTitle">Password</label>
+											  	<input type="text" class="form-control" name="bookTitle" id="bookTitle" placeholder="Book Title">
+											</div>
+											<div style="padding: 10px;"></div>
+											<div class="form-group">
+												<div style="padding-bottom: 4px;">Search by Author Name:</div>
+											  	<label style="display: none;" for="authorName">Author Name</label>
+											  	<input type="text" class="form-control" name="authorName" id="authorName" placeholder="Author Name">
+											</div>
+											<div style="padding: 20px;"></div>
+											<button type="submit" id="btnSearch" class="btn btn-primary">Submit</button>
+										</form>
+										<script>
+											const bookTitle = document.getElementById('bookTitle');
+											const authorName = document.getElementById('authorName');
+											const btnSearch = document.getElementById('btnSearch');
+											let btnPrevious, btnNext, currentPage=1;
+											btnSearch.addEventListener('click', postData);
+											let time = 0;
+
+											async function postData(e) {
+												console.dir(e.target.id);
+												e.preventDefault();
+												if (e.target.id == 'btnSearch') currentPage=1;
+												if (e.target.id == 'btnPrevious') currentPage-=1;
+												if (e.target.id == 'btnNext') currentPage+=1;
+												if (currentPage<1) currentPage = 1;
+												const start = Date.now();
+												const res = await fetch(location.origin, {
+													method: 'POST',
+													headers: {
+														'Content-Type': 'application/json'
+													},
+													body: JSON.stringify({
+														bookTitle: bookTitle.value.replace(/ /g, '+'),
+														authorName: authorName.value.replace(/ /g, '+'),
+														currentPage: currentPage
+													})
+												});
+												const finish = Date.now();
+												time = finish - start;
+												console.log('API response time: ' + time);
+												const body = await res.json();
+												if (body.status) {
+													console.log(body.status);
+												} else {
+													console.log(body);
+													displayResults(body);
+												}
+											}
+
+											function displayResults(body) {
+												let publishDates = getPublishDates(body.items) || [];
+												let mostCommonAuthors = getMostCommonAuthors(body.items) || 'none';
+												console.log(publishDates);
+												const totalPages = Math.ceil(body.totalItems / 10);
+												document.getElementsByClassName('major')[0].innerHTML = '<h2 style="margin: 0 !important;">Showing ' + body.items.length + ' Results ('+currentPage+'/'+totalPages+' pages):</h2>';
+												document.getElementById('searchInfo').innerHTML = '<h3 style="margin: 1em 0 0 1em; width:100%;">Total articles: ' + body.totalItems + '</h3>';
+												document.getElementById('searchInfo').innerHTML += '<h3 style="margin: 0 0 0 1em; width:100%;">Server response: ' + time + ' ms</h3>';
+												document.getElementById('searchInfo').innerHTML += '<h3 style="margin: 0 0 0 1em; width:100%;">Earliest publication: '+publishDates[0]+'</h3>';
+												document.getElementById('searchInfo').innerHTML += '<h3 style="margin: 0 0 0 1em; width:100%;">Latest publication: '+publishDates[publishDates.length-1]+'</h3>';
+												document.getElementById('searchInfo').innerHTML += '<h3 style="margin: 0 0 0 1em; width:100%;">Most common author(s): '+mostCommonAuthors+'</h3>';
+												document.getElementById('pageButtons').innerHTML = '<button id="btnPrevious" style="margin-right: 2em;">Previous</button><button id="btnNext">Next</button>';
+												document.getElementById('pageButtons').style.margin = '2em 0 3em 2em';
+												document.getElementsByClassName('features')[0].innerHTML = '';
+
+												for (const i of body.items) {
+													let authors = '';
+													if (i.volumeInfo.authors) {
+														for (const a of i.volumeInfo.authors) {
+															authors += a + ', ';
+														}
+														authors = authors.substr(0, authors.length-2);
+													}
+
+													let title = 'no title';
+													if (i.volumeInfo.title) {
+														title = i.volumeInfo.title;
+													}
+
+													let description = "No description provided.";
+													if (i.volumeInfo.description) {
+														description = i.volumeInfo.description;
+													}
+
+													let imgThumb = 'https://via.placeholder.com/128x198';
+													if (i.volumeInfo.imageLinks) {
+														if (i.volumeInfo.imageLinks.thumbnail) {
+															imgThumb = i.volumeInfo.imageLinks.thumbnail;
+														}
+													}
+
+													let publishDate = 'not provided';
+													if (i.volumeInfo.publishedDate) {
+														publishDate = i.volumeInfo.publishedDate;
+													}
+
+													document.getElementsByClassName('features')[0].innerHTML +=
+													`<article style="align-items: flex-start;">
+														<img src="${imgThumb}" alt="${title}">
+														<div class="content" style="padding-left: 2em;">
+															<h3 style="margin:0em;">${authors} - ${title}</h3>
+															<h5>Date published: ${publishDate}</h5>
+															<h4 class="collapsible">Open Description</h4>
+															<div class="collapseContent">
+																<p style="margin: 1em 0 2em 0;">${description}</p>
+															</div>
+														</div>
+													</article>`;
+												}
+
+												// Collapsible code:
+												const elem = document.getElementsByClassName("collapsible");
+												for (let i = 0; i < elem.length; i++) {
+													elem[i].addEventListener("click", function() {
+														this.classList.toggle("active");
+														let content = this.nextElementSibling;
+														if (content.style.maxHeight){
+															content.style.maxHeight = null;
+														} else {
+															content.style.maxHeight = content.scrollHeight + "px";
+														} 
+													});
+												}
+
+												// Add Listeners to Previous and Next buttons:
+												btnPrevious = document.getElementById('btnPrevious');
+												currentPage<=1 ? btnPrevious.disabled = true : btnPrevious.disabled = false;
+												btnPrevious.addEventListener('click', postData);
+
+												btnNext = document.getElementById('btnNext');
+												currentPage>=totalPages ? btnNext.disabled = true : btnNext.disabled = false;
+												btnNext.addEventListener('click', postData);
+											}
+
+											function getPublishDates(items) {
+												let publishDates = [];
+												let sortedDates = [];
+												for (const i of items) {
+													if (i.volumeInfo.publishedDate) {
+														publishDates.push(i.volumeInfo.publishedDate.replace(/-/g, ''));
+													}
+												}
+												publishDates.sort();
+												for (const i of publishDates) {
+													sortedDates.push(i.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
+												}
+												return sortedDates;
+											}
+
+											function removeSpecialChars(a) {
+												return a.replace(/[^a-zA-Z ]/g, '');
+											}
+
+											function getMostCommonAuthors(items) {
+												let authors = [];
+												let uniqueAuthors = [];
+												let notUnique = true;
+												for (const i of items) {
+													if (i.volumeInfo.authors) {
+														for (const a of i.volumeInfo.authors) {
+															// console.log(a);
+															authors.push(a);
+															if (!uniqueAuthors.find((obj)=>obj.name==removeSpecialChars(a))) { // If not found, add to array:
+																uniqueAuthors.push({'name': removeSpecialChars(a), 'count': 1});
+															} else {
+																uniqueAuthors[uniqueAuthors.findIndex((obj)=>obj.name==removeSpecialChars(a))].count++;
+																notUnique = false;
+															}
+														}
+													}
+												}
+												if (notUnique) return null;
+												uniqueAuthors.sort((a,b) => b.count - a.count); // Sort from hightest to lowest
+												console.log('uniqueAuthors:');
+												console.log(uniqueAuthors);
+
+												let topAuthorCount = 1;
+												let maxCount = uniqueAuthors[0].count;
+												for (let i=0; i<uniqueAuthors.length; i++) {
+													if (uniqueAuthors[i+1]) {
+														if (maxCount == uniqueAuthors[i+1].count) { // In case there are more than one common author
+															topAuthorCount++;
+														}
+													}
+												}
+												const topArr = uniqueAuthors.slice(0, topAuthorCount); // Truncate the rest
+												let text = '';
+												for (const i of topArr) {
+													text += i.name + ', ';
+												}
+												return text.substr(0, text.length-2);
+											}
+										</script>
+										<!-- Google Books API code END -->
+
+									</div>
+								</section>
+
+							<!-- Section -->
+								<section>
+									<header class="major">
+										<h2>Erat lacinia</h2>
+									</header>
+									<div id="searchInfo"></div>
+									<div id="pageButtons"></div>
+									<div class="features">
+										<article>
+											<span class="icon fa-gem"></span>
+											<div class="content">
+												<h3>Portitor ullamcorper</h3>
+												<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											</div>
+										</article>
+										<article>
+											<span class="icon solid fa-paper-plane"></span>
+											<div class="content">
+												<h3>Sapien veroeros</h3>
+												<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											</div>
+										</article>
+										<article>
+											<span class="icon solid fa-rocket"></span>
+											<div class="content">
+												<h3>Quam lorem ipsum</h3>
+												<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											</div>
+										</article>
+										<article>
+											<span class="icon solid fa-signal"></span>
+											<div class="content">
+												<h3>Sed magna finibus</h3>
+												<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											</div>
+										</article>
+									</div>
+								</section>
+
+							<!-- Section -->
+								<section>
+									<header class="major">
+										<h2>Ipsum sed dolor</h2>
+									</header>
+									<div class="posts">
+										<article>
+											<a href="#" class="image"><img src="images/pic01.jpg" alt="" /></a>
+											<h3>Interdum aenean</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic02.jpg" alt="" /></a>
+											<h3>Nulla amet dolore</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic03.jpg" alt="" /></a>
+											<h3>Tempus ullamcorper</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic04.jpg" alt="" /></a>
+											<h3>Sed etiam facilis</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic05.jpg" alt="" /></a>
+											<h3>Feugiat lorem aenean</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic06.jpg" alt="" /></a>
+											<h3>Amet varius aliquam</h3>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+											<ul class="actions">
+												<li><a href="#" class="button">More</a></li>
+											</ul>
+										</article>
+									</div>
+								</section>
+
+						</div>
+					</div>
+
+				<!-- Sidebar -->
+					<div id="sidebar">
+						<div class="inner">
+
+							<!-- Search -->
+								<section id="search" class="alt">
+									<form>
+										<input type="text" name="query" id="query" placeholder="Search" />
+									</form>
+								</section>
+
+							<!-- Menu -->
+								<nav id="menu">
+									<header class="major">
+										<h2>Menu</h2>
+									</header>
+									<ul>
+										<li><a href="index.html">Homepage</a></li>
+										<li><a href="generic.html">Generic</a></li>
+										<li><a href="elements.html">Elements</a></li>
+										<li>
+											<span class="opener">Submenu</span>
+											<ul>
+												<li><a href="#">Lorem Dolor</a></li>
+												<li><a href="#">Ipsum Adipiscing</a></li>
+												<li><a href="#">Tempus Magna</a></li>
+												<li><a href="#">Feugiat Veroeros</a></li>
+											</ul>
+										</li>
+										<li><a href="#">Etiam Dolore</a></li>
+										<li><a href="#">Adipiscing</a></li>
+										<li>
+											<span class="opener">Another Submenu</span>
+											<ul>
+												<li><a href="#">Lorem Dolor</a></li>
+												<li><a href="#">Ipsum Adipiscing</a></li>
+												<li><a href="#">Tempus Magna</a></li>
+												<li><a href="#">Feugiat Veroeros</a></li>
+											</ul>
+										</li>
+										<li><a href="#">Maximus Erat</a></li>
+										<li><a href="#">Sapien Mauris</a></li>
+										<li><a href="#">Amet Lacinia</a></li>
+									</ul>
+								</nav>
+
+							<!-- Section -->
+								<section>
+									<header class="major">
+										<h2>Ante interdum</h2>
+									</header>
+									<div class="mini-posts">
+										<article>
+											<a href="#" class="image"><img src="images/pic07.jpg" alt="" /></a>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore aliquam.</p>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic08.jpg" alt="" /></a>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore aliquam.</p>
+										</article>
+										<article>
+											<a href="#" class="image"><img src="images/pic09.jpg" alt="" /></a>
+											<p>Aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore aliquam.</p>
+										</article>
+									</div>
+									<ul class="actions">
+										<li><a href="#" class="button">More</a></li>
+									</ul>
+								</section>
+
+							<!-- Section -->
+								<section>
+									<header class="major">
+										<h2>Get in touch</h2>
+									</header>
+									<p>Sed varius enim lorem ullamcorper dolore aliquam aenean ornare velit lacus, ac varius enim lorem ullamcorper dolore. Proin sed aliquam facilisis ante interdum. Sed nulla amet lorem feugiat tempus aliquam.</p>
+									<ul class="contact">
+										<li class="icon solid fa-envelope"><a href="#">information@untitled.tld</a></li>
+										<li class="icon solid fa-phone">(000) 000-0000</li>
+										<li class="icon solid fa-home">1234 Somewhere Road #8254<br />
+										Nashville, TN 00000-0000</li>
+									</ul>
+								</section>
+
+							<!-- Footer -->
+								<footer id="footer">
+									<p class="copyright">&copy; Untitled. All rights reserved. Demo Images: <a href="https://unsplash.com">Unsplash</a>. Design: <a href="https://html5up.net">HTML5 UP</a>.</p>
+								</footer>
+
+						</div>
+					</div>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
